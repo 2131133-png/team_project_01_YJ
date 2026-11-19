@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>중고거래 피해 대응 길잡이</title>
+  <meta name="description" content="온라인피해 365센터 중고거래 피해 첫 진단·기관 안내 시제품" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <a class="skip" href="#chat">대화로 바로 가기</a>
+
+  <header class="top">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">365</span>
+      <div>
+        <p class="brand-org">온라인피해 365센터</p>
+        <h1>중고거래 피해 대응 길잡이</h1>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="text-size" id="textSize" type="button" aria-pressed="false">큰 글씨</button>
+      <a class="tel-109" href="tel:109" aria-label="힘들 땐 109, 24시간"><span>힘들 땐 </span>☎ 109<span> 24시간</span></a>
+    </div>
+  </header>
+
+  <!-- 휴대폰 전용: 대화 중에도 정리 진행 상황이 보이게 머리줄 아래 고정 -->
+  <details class="mini-ledger" id="miniLedger">
+    <summary>
+      <span class="mini-title">지금까지 정리한 사실</span>
+      <span class="mini-bar" aria-hidden="true"><i id="miniBar"></i></span>
+      <b id="miniCount">0 / 6</b>
+    </summary>
+    <dl id="miniList"></dl>
+  </details>
+
+  <div class="layout">
+    <aside class="side" aria-label="이용 안내">
+      <section class="card notice">
+        <h2>먼저 읽어 주세요</h2>
+        <ul>
+          <li>길잡이는 <b>돈·비밀번호·인증번호를 절대 묻지 않아요.</b> 365센터를 사칭한 연락에 주의하세요.</li>
+          <li>주민등록번호·계좌 비밀번호는 쓰지 마세요.</li>
+          <li>결과는 법적 판단이 아닌 <b>어디에 먼저 갈지</b>에 대한 안내예요.</li>
+        </ul>
+      </section>
+
+      <section class="card ledger" aria-live="polite">
+        <div class="ledger-head">
+          <h2>지금까지 정리한 사실</h2>
+          <span id="ledgerCount" class="ledger-count">0 / 6</span>
+        </div>
+        <dl id="ledger"></dl>
+        <p class="ledger-foot">분류는 AI가 아니라 정해진 규칙표가 해요.</p>
+      </section>
+
+      <section class="card how">
+        <h2>이용 방법</h2>
+        <p>상황을 편하게 쓰거나 버튼으로 답하세요. 부족한 것만 다시 여쭤보고, 맞는 기관과 증거 정리표를 드려요.</p>
+        <button class="btn outlined block" id="agentBtn" type="button">365센터 상담원 연결</button>
+      </section>
+    </aside>
+
+    <main class="chat" id="chat">
+      <div id="crisisSlot"></div>
+      <div class="log" id="log" aria-live="polite"></div>
+      <form class="composer" id="composer" autocomplete="off">
+        <label class="sr" for="input">상황 설명</label>
+        <textarea id="input" rows="2" maxlength="1000" placeholder="예: 이어폰 산다고 15만 원 보냈는데 판매자가 답이 없어요"></textarea>
+        <button class="btn primary" type="submit" id="sendBtn">보내기</button>
+      </form>
+      <p class="composer-note">보낸 문장의 계좌번호·전화번호는 가린 뒤 AI에 전달돼요. 저장하지 않아요.</p>
+    </main>
+  </div>
+
+  <dialog id="agentDialog" class="popup">
+    <h2>365센터 상담원 연결</h2>
+    <p class="popup-desc">전화로 연결하고, 길잡이가 정리한 내용을 상담원에게 그대로 읽어 주거나 온라인 상담 신청서에 붙여 넣으세요.</p>
+    <a class="btn primary block" href="tel:142235">☎ 142-235 전화하기</a>
+    <p class="popup-desc small">평일 09:00~18:00 전화 · 온라인 신청은 24시간</p>
+    <pre id="agentSummary" class="summary"></pre>
+    <div class="row">
+      <button class="btn outlined" type="button" id="copySummary">정리 내용 복사</button>
+      <button class="btn ghost" type="button" id="closeAgent">닫기</button>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
