@@ -37,7 +37,9 @@ async function callClaude(system, user) {
     if (!modelCache.claude) {
       const ids = [];
       for await (const m of client.models.list()) ids.push(m.id);
-      modelCache.claude = ids.includes('claude-opus-5-5') ? 'claude-opus-5-5' : ids[0];
+      // 사실 항목 정리는 어려운 작업이 아니므로 가벼운 모델(Haiku → Sonnet)만 쓴다. Opus 는 고르지 않는다.
+      const latest = (re) => ids.filter((id) => re.test(id)).sort().pop();
+      modelCache.claude = latest(/haiku/i) || latest(/sonnet/i);
       if (!modelCache.claude) throw new AiError('모델 목록 비어 있음');
     }
     const msg = await client.beta.messages.create({

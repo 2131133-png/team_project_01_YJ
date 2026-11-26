@@ -187,14 +187,17 @@ async function onText(text) {
   }
   renderLedger();
   const why = data.tried.filter((t) => !t.ok).map((t) => `${t.name}: ${t.reason}`).join(' · ');
-  state.aiNote = data.mode === 'live' ? `${data.provider}${data.model ? ` (${data.model})` : ''}` : '시연 값(단어 맞추기)';
+  // 화면·내보내기 문구에는 AI 이름·모델명을 드러내지 않고 범용 표기만 쓴다
+  state.aiNote = 'AI 활용';
   if (DEBUG) {
     // 팀 시연·점검용(주소 끝에 ?debug): 어느 AI가 답했는지, 앞 순서가 왜 실패했는지
     log.append(el('p', { class: `meta ${data.mode === 'live' ? '' : 'demo'}` },
-      data.mode === 'live' ? `정리한 AI: ${state.aiNote}${why ? ` · 앞 순서 실패 — ${why}` : ''}` : `AI 연결 실패 — ${why || '이유 모름'} · 시연 값으로 정리했어요`));
+      data.mode === 'live' ? `AI 활용${why ? ` · 앞 순서 실패 — ${why}` : ''}` : `AI 연결 실패 — ${why || '이유 모름'} · 시연 값으로 정리했어요`));
   } else if (data.mode !== 'live') {
     // 이용자에게는 기술 문구 없이 할 일만
     log.append(el('p', { class: 'meta' }, '자동 정리가 잠시 어려워 간단히 정리했어요. 틀린 칸은 고쳐 주세요.'));
+  } else {
+    log.append(el('p', { class: 'meta' }, 'AI 활용'));
   }
 
   if (state.facts.crisis === '있음') {
@@ -433,7 +436,7 @@ function summaryText() {
   return [
     '[길잡이 정리 내용]',
     ...Object.entries(FIELDS).map(([k, x]) => `- ${x.label}: ${f[k]}`),
-    `- 진단: ${r ? `${r.guide.label}${r.rule ? ` (규칙 ${r.rule})` : ''}` : '아직 진단 전'}`,
+    `- 진단: ${r ? `${r.guide.label}` : '아직 진단 전'}`,
     state.aiNote ? `- 정리 방식: ${state.aiNote}` : '- 정리 방식: 버튼 답변',
   ].join('\n');
 }
