@@ -196,6 +196,8 @@ async function onText(text) {
   } else if (data.mode !== 'live') {
     // 이용자에게는 기술 문구 없이 할 일만
     log.append(el('p', { class: 'meta' }, '자동 정리가 잠시 어려워 간단히 정리했어요. 틀린 칸은 고쳐 주세요.'));
+  } else {
+    log.append(el('p', { class: 'meta' }, 'AI 활용'));
   }
 
   if (state.facts.crisis === '있음') {
@@ -434,7 +436,7 @@ function summaryText() {
   return [
     '[길잡이 정리 내용]',
     ...Object.entries(FIELDS).map(([k, x]) => `- ${x.label}: ${f[k]}`),
-    `- 진단: ${r ? `${r.guide.label}${r.rule ? ` (규칙 ${r.rule})` : ''}` : '아직 진단 전'}`,
+    `- 진단: ${r ? `${r.guide.label}` : '아직 진단 전'}`,
     state.aiNote ? `- 정리 방식: ${state.aiNote}` : '- 정리 방식: 버튼 답변',
   ].join('\n');
 }
