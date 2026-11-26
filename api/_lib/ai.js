@@ -1,10 +1,17 @@
 // AI 호출: CLAUDE_API_KEY → GROQ_API_KEY → GEMINI_API_KEY 순서.
 // 키 비어 있음 · 오류 · 시간 초과면 다음으로 넘어가고, 시도한 기록(tried)을 남긴다.
-// 모델 이름은 코드에 박지 않고 각 키로 모델 목록을 조회해 고른다(404 면 모델 이름부터 의심).
+// Claude 는 모델 이름을 고정(아래 CLAUDE_MODEL), Groq·Gemini 는 모델 목록을 조회해 고른다(404 면 모델 이름부터 의심).
 import Anthropic from '@anthropic-ai/sdk';
 
 const TIMEOUT_MS = 8000;
 const modelCache = {};
+
+// Claude 모델은 두 가지만 쓴다(그 외 모델 금지). 키는 코드에 쓰지 않고 서버 환경변수 CLAUDE_API_KEY 로만 읽는다.
+// - 사실 항목 추출(짧은 글 → 정해진 형식 JSON)은 단순 분류라서 Haiku.
+// - 긴 문맥 이해·복잡한 판단 기능이 생기면 CLAUDE_MODEL_COMPLEX(Sonnet)를 쓴다.
+const CLAUDE_MODEL = 'claude-haiku-5-5';
+// eslint-disable-next-line no-unused-vars
+const CLAUDE_MODEL_COMPLEX = 'claude-sonnet-5-5';
 
 class AiError extends Error {
   constructor(reason, detail) { super(reason); this.reason = reason; this.detail = detail; }
@@ -34,20 +41,10 @@ async function callClaude(system, user) {
   if (!apiKey) throw new AiError('키 비어 있음');
   const client = new Anthropic({ apiKey, timeout: TIMEOUT_MS, maxRetries: 0 });
   try {
-    if (!modelCache.claude) {
-      const ids = [];
-      for await (const m of client.models.list()) ids.push(m.id);
-      // 사실 항목 정리는 어려운 작업이 아니므로 가벼운 모델(Haiku → Sonnet)만 쓴다. Opus 는 고르지 않는다.
-      const latest = (re) => ids.filter((id) => re.test(id)).sort().pop();
-      modelCache.claude = latest(/haiku/i) || latest(/sonnet/i);
-      if (!modelCache.claude) throw new AiError('모델 목록 비어 있음');
-    }
     const msg = await client.beta.messages.create({
-      model: modelCache.claude,
+      model: CLAUDE_MODEL,
       max_tokens: 1024,
       output_config: { effort: 'low' },
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
       system,
       messages: [{ role: 'user', content: user }],
     });
@@ -55,7 +52,7 @@ async function callClaude(system, user) {
     return { text: msg.content.filter((b) => b.type === 'text').map((b) => b.text).join(''), model: msg.model };
   } catch (e) {
     if (e instanceof AiError) throw e;
-    if (e instanceof Anthropic.NotFoundError) { delete modelCache.claude; throw new AiError('모델 이름 의심(404)'); }
+    if (e instanceof Anthropic.NotFoundError) { throw new AiError('모델 이름 의심(404)'); }
     if (e instanceof Anthropic.APIConnectionTimeoutError) throw new AiError('시간 초과');
     if (e instanceof Anthropic.APIError && e.status) throw new AiError(reasonFromStatus(e.status), e.message);
     throw new AiError('연결 실패', e.message);
