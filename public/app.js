@@ -36,7 +36,8 @@ const QUESTIONS = {
   fakePost: { q: '판매 글이 수상했던 점이 있었나요?', opts: ['남의 사진이었음', '다른 피해 글을 봄', '없음', '모름'] },
 };
 
-const CRISIS_WORDS = ['죽고 싶', '죽고싶', '죽을래', '자살', '자해', '극단적', '살기 싫', '살기싫', '살고 싶지 않', '사라지고 싶', '뛰어내리', '목숨', '끝내고 싶', '다 끝내', '없어지고 싶'];
+const CRISIS_WORDS = ['죽고 싶', '죽고싶', '죽을래', '자살', '자해', '극단적', '살기 싫', '살기싫', '살고 싶지 않', '사라지고 싶', '뛰어내리', '목숨', '끝내고 싶', '다 끝내', '없어지고 싶',
+  '죽어버리', '죽어 버리', '죽을 것 같', '죽을것 같', '죽고만 싶', '죽는 게 낫', '죽는게 낫', '죽어야', '살 의미', '살아갈 의미', '살 자신', '삶을 끝', '못 살겠', '못살겠', '자결', '유서', '생을 마감', '세상을 떠나']; // 서버 api/_lib/rules.js 의 CRISIS_WORDS 와 같게 유지
 
 const $ = (s) => document.querySelector(s);
 const DEBUG = new URLSearchParams(location.search).has('debug'); // ?debug 면 AI 기술 정보 표시
@@ -129,15 +130,18 @@ function setStage(n, { reset = false, sheet = true } = {}) {
 
 // ---------- 위기 ----------
 function hasCrisisWord(t) { const s = t.replace(/\s+/g, ' '); return CRISIS_WORDS.some((w) => s.includes(w)); }
-function showCrisis() {
-  if ($('#crisisSlot').childElementCount) return;
-  $('#crisisSlot').append(el('section', { class: 'crisis', role: 'alert' },
+function crisisBox() {
+  return el('section', { class: 'crisis', role: 'alert' },
     el('h3', {}, '많이 힘드시죠. 먼저 이야기를 들어 줄 곳이 있어요'),
     el('p', {}, '자살예방 상담전화 109는 24시간 연결돼요. 통화한 뒤에도 원하시면 피해 상황 정리를 이어서 도와 드릴게요.'),
     el('a', { class: 'btn primary', href: 'tel:109' }, '☎ 109 전화하기'),
-    el('p', { class: 'sources' }, '근거: 정책브리핑_자살예방_상담전화_109_통합'),
-  ));
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+    el('p', { class: 'sources' }, '근거: 정책브리핑_자살예방_상담전화_109_통합'));
+}
+// 위쪽 고정 상자는 한 번만 만들고, inline 이면 지금 보고 있는 대화 아래에도 바로 띄운다(아래에서 쓰는 중에도 보이게)
+function showCrisis({ inline = false, scroll = true } = {}) {
+  if (!$('#crisisSlot').childElementCount) $('#crisisSlot').append(crisisBox());
+  if (inline) { botWide(crisisBox()); return; }
+  if (scroll) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ---------- 질문 ----------
@@ -219,9 +223,10 @@ function next() {
 // ---------- 자유 입력 ----------
 async function onText(text) {
   user(text);
-  if (hasCrisisWord(text)) { state.facts.crisis = '있음'; showCrisis(); renderLedger(); }
-  // 결과가 나온 뒤의 글은 새 사건이 아니라 궁금한 점으로 보고 답한다
-  if (state.result && !state.result.crisis) return answerQuestion(text);
+  const crisisNow = hasCrisisWord(text);
+  if (crisisNow) { state.facts.crisis = '있음'; showCrisis({ inline: true }); renderLedger(); }
+  // 결과가 나온 뒤의 글은 새 사건이 아니라 궁금한 점으로 보고 답한다. 위기 표현이 있으면 AI 에 보내지 않고 109 안내만 한다
+  if (state.result && !state.result.crisis) return crisisNow ? undefined : answerQuestion(text);
   const wait = bot('정리하고 있어요…');
   let data;
   try { data = await post('/api/extract', { text }); }
@@ -249,8 +254,8 @@ async function onText(text) {
   }
 
   if (state.facts.crisis === '있음') {
-    showCrisis();
-    bot('위에 109 안내를 먼저 띄워 두었어요. 원하시면 피해 상황 정리를 이어서 도와 드릴게요.');
+    showCrisis({ scroll: false }); // 글에서 감지된 경우 대화 아래에 이미 띄웠으므로 화면을 위로 끌고 가지 않는다
+    bot('109 안내를 먼저 띄워 두었어요. 원하시면 피해 상황 정리를 이어서 도와 드릴게요.');
     choiceRow([['go', '이어서 정리하기']], () => understood());
     return;
   }

@@ -277,3 +277,6 @@ html.large body { zoom: 1.2; }
 .steps li.done .dot { background: var(--green-alt); color: #fff; }
 .steps.no-sheet li[data-step="3"] { display: none; }
 @media (max-width: 480px) { .steps ol { gap: 12px; padding: 0 12px; } .steps li { font-size: 13px; gap: 6px; } }
+/* 대화 중에 바로 띄우는 109 안내: 말풍선 안에 또 상자가 겹쳐 보이지 않게 */
+.msg.wide:has(> .crisis) { background: transparent; padding: 0; }
+.msg.wide > .crisis { margin: 0; }
