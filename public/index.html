@@ -25,6 +25,15 @@
     </div>
   </header>
 
+  <!-- 진행 상황: 어디까지 왔는지 늘 위에 보인다(app.js 의 setStage 가 칠한다) -->
+  <nav class="steps" id="steps" aria-label="진행 상황">
+    <ol>
+      <li data-step="1" class="current" aria-current="step"><span class="dot" aria-hidden="true">1</span><span class="label">상황 답하기</span></li>
+      <li data-step="2"><span class="dot" aria-hidden="true">2</span><span class="label">기관 확인</span></li>
+      <li data-step="3"><span class="dot" aria-hidden="true">3</span><span class="label">정리표 받기</span></li>
+    </ol>
+  </nav>
+
   <!-- 휴대폰 전용: 대화 중에도 정리 진행 상황이 보이게 머리줄 아래 고정 -->
   <details class="mini-ledger" id="miniLedger">
     <summary>
