@@ -6,6 +6,7 @@ import { classify, hasCrisisWord } from './_lib/rules.js';
 import { guideFor, CENTER, CRISIS_GUIDE } from './_lib/guides.js';
 import { askAi } from './_lib/ai.js';
 import { personaPrompt } from './_lib/persona.js';
+import { resultKey, faqById, matchFaq, faqReply, faqList, intentOf, fixedReply, eventPrefix, NOT_FOUND, NOT_FOUND_LINKS, RELATED_LABEL } from './_lib/faq.js';
 import { mask } from './extract.js';
 
 // 「AI 답변 규칙」 — 페르소나보다 앞에 두고, 페르소나가 바꿀 수 없다
@@ -45,14 +46,19 @@ function parseAnswer(text) {
   } catch { return null; }
 }
 
+// 흐름: 위기 표현 → (결과 전) 인사·감사·감정 고정 문구 → (결과 뒤) 자주 묻는 질문 → 감사·감정·인사 고정 문구 → AI → 못 답하면 상담 창구 안내
+// 근거 문서 이름·출처는 소비자에게 보이지 않는다.
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST 만 받아요' });
+  const stage = req.body?.stage === 'pre' ? 'pre' : 'post';
+  const faqId = Number(req.body?.faqId) || null;
   const question = String(req.body?.question || '').slice(0, 500);
-  if (!question.trim()) return res.status(400).json({ error: '내용이 비어 있어요' });
+  if (!question.trim() && !faqId) return res.status(400).json({ error: '내용이 비어 있어요' });
 
   const facts = req.body?.facts || {};
   const c = classify(facts);
   const g = guideFor(c);
+  const key = resultKey(c);
   const crisisWord = hasCrisisWord(question);
 
   // 위기 표현이 있으면 피해 안내보다 109 안내가 먼저다(페르소나 「하지 않는 일」·화면의 위기 상자와 같은 원칙)
@@ -63,17 +69,33 @@ export default async function handler(req, res) {
     });
   }
 
+  // 결과 버튼으로 고른 질문은 말뜻을 가를 필요 없이 그 질문의 답을 준다
+  if (faqId && faqById(faqId)) return res.status(200).json({ ...faqReply(faqById(faqId), key), relatedLabel: RELATED_LABEL, mode: 'faq', crisisWord });
+
+  const intent = intentOf(question);
+
+  // 결과 전: 인사·감사·감정만 고정 문구로 받고, 그 밖의 글은 사건 설명으로 보고 화면이 이어서 정리한다
+  if (stage === 'pre') {
+    if (intent.kind === 'event') return res.status(200).json({ kind: 'event', prefix: intent.emotion ? eventPrefix() : null });
+    const fixed = fixedReply(intent);
+    if (fixed) return res.status(200).json({ ...fixed, mode: 'fixed', crisisWord });
+    return res.status(200).json({ kind: 'event', prefix: null });
+  }
+
+  // 결과 뒤: 자주 묻는 질문에 맞으면 그 답
+  const f = matchFaq(question, key);
+  if (f) return res.status(200).json({ ...faqReply(f, key), relatedLabel: RELATED_LABEL, mode: 'faq', crisisWord });
+
+  // 감사·감정·인사는 고정 문구
+  const fixed = fixedReply(intent);
+  if (fixed) return res.status(200).json({ ...fixed, related: faqList(key).slice(0, 4), relatedLabel: RELATED_LABEL, mode: 'fixed', crisisWord });
+
   const system = `${RULES}${personaPrompt()}\n\n[안내 자료]\n${material(c, g, facts)}`;
   const ai = await askAi(system, mask(question));
   const parsed = ai.text ? parseAnswer(ai.text) : null;
-  console.log(`[ask] ${parsed ? `${ai.provider} 성공` : '안내 문구로 대체'}`);
+  console.log(`[ask] ${parsed ? `${ai.provider} 성공` : '상담 창구 안내로 대체'}`);
 
-  if (parsed) {
-    // 근거 문서 이름은 소비자에게 보여 주지 않는다(답 본문만 돌려준다)
-    const answer = parsed.answer;
-    return res.status(200).json({ answer, mode: 'live', crisisWord });
-  }
-  // AI 를 쓸 수 없을 때: 이미 검증된 안내 문구를 순서대로 다시 보여 준다
-  const fallback = `지금은 질문에 맞춰 답하기 어려워요. 대신 지금 할 일을 순서대로 다시 알려 드려요.\n${g.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n더 궁금한 점은 ${CENTER.name} ☎${CENTER.tel}(${CENTER.hours})로 물어보세요.`;
-  res.status(200).json({ answer: fallback, mode: 'demo', crisisWord });
+  if (parsed) return res.status(200).json({ answer: parsed.answer, links: [], related: faqList(key).slice(0, 4), relatedLabel: RELATED_LABEL, mode: 'live', crisisWord });
+  // AI 를 쓸 수 없을 때: 정확히 모른다고 말하고 상담 창구와 자주 묻는 질문을 보여 준다
+  res.status(200).json({ answer: NOT_FOUND, links: NOT_FOUND_LINKS, related: faqList(key).slice(0, 4), relatedLabel: RELATED_LABEL, mode: 'demo', crisisWord });
 }

@@ -226,6 +226,14 @@ async function onText(text) {
   if (crisisNow) { state.facts.crisis = '있음'; showCrisis({ inline: true }); renderLedger(); }
   // 결과가 나온 뒤의 글은 새 사건이 아니라 궁금한 점으로 보고 답한다. 위기 표현이 있으면 AI 에 보내지 않고 109 안내만 한다
   if (state.result && !state.result.crisis) return crisisNow ? undefined : answerQuestion(text);
+  // 결과 전: 인사·감사·감정만 고정 문구로 받고, 사건 설명이면 그대로 정리한다(서버 api/ask.js 의 stage 'pre')
+  if (!crisisNow) {
+    try {
+      const d = await post('/api/ask', { question: text, facts: state.facts, stage: 'pre' });
+      if (d.kind !== 'event') { showReply(d); return; }
+      if (d.prefix) bot(d.prefix);
+    } catch { /* 못 받으면 사건 설명으로 보고 이어간다 */ }
+  }
   const wait = bot('정리하고 있어요…');
   let data;
   try { data = await post('/api/extract', { text }); }
@@ -262,15 +270,32 @@ async function onText(text) {
 }
 
 // ---------- 결과 뒤 질문 ----------
-async function answerQuestion(text) {
+async function answerQuestion(text, faqId) {
   const wait = bot('답을 찾고 있어요…');
   try {
-    const d = await post('/api/ask', { question: text, facts: state.facts });
+    const d = await post('/api/ask', { question: text, facts: state.facts, stage: 'post', faqId });
     wait.remove();
-    bot(d.answer);
-  } catch (e) {
+    showReply(d);
+  } catch {
     wait.remove();
-    bot(`잠시 문제가 생겼어요. 조금 뒤 다시 시도하거나 365센터 ☎142-235로 문의해 주세요.`);
+    bot('잠시 문제가 생겼어요. 조금 뒤 다시 시도하거나 365센터 ☎142-235로 문의해 주세요.');
+  }
+}
+
+// 서버가 돌려준 답을 그린다: 말풍선 → 바로 연결(전화·링크) → 안내 문구 → 관련 질문 버튼
+function showReply(d) {
+  bot(d.answer);
+  if (d.links?.length) {
+    const box = el('div', { class: 'quick-links' }, d.links.map((o) => el('div', { class: 'quick' },
+      el('a', { class: 'btn outlined', href: o.tel ? `tel:${o.tel.replace(/[^0-9]/g, '')}` : o.href, ...(o.tel ? {} : { target: '_blank', rel: 'noopener' }) },
+        `${o.name}${o.tel ? ` ☎${o.tel}` : ''}`),
+      o.note ? el('span', { class: 'quick-note' }, o.note) : null)));
+    botWide(box);
+  }
+  if (d.notice) log.append(el('p', { class: 'meta' }, d.notice));
+  if (d.related?.length) {
+    bot(d.relatedLabel || '이런 질문도 많이 해요.');
+    faqRow({ faq: d.related });
   }
 }
 
@@ -694,23 +719,20 @@ function nextBox(r) {
 }
 
 // ---------- 자주 묻는 질문 ----------
+// 결과별 질문 목록은 서버(api/_lib/faq.js)가 정한다. 못 받았을 때만 아래 기본 질문을 쓴다
 function faqs(r) {
-  if (r.result === 'fraud') return ['보낸 돈을 돌려받을 수 있나요?', '은행에 전화하면 뭐라고 말하나요?', '캡처는 어떻게 하나요?', '경찰 신고는 어떻게 하나요?', '증거 정리표는 꼭 내야 하나요?'];
-  if (r.result === 'dispute') return ['판매자가 환불을 거부하면 어떻게 하나요?', '분쟁조정은 어떻게 신청하나요?', '요청 메시지는 어떻게 보내나요?', '증거 정리표는 꼭 내야 하나요?'];
-  if (r.variant === 'mistransfer') return ['착오송금은 어떻게 돌려받나요?', '은행에는 뭐라고 말하나요?', '반환지원 신청은 어디서 하나요?'];
-  if (r.result === 'out') return ['지급정지는 어떻게 요청하나요?', '112에는 뭐라고 말하나요?', '설치한 앱은 어떻게 하나요?'];
-  return ['365센터에 전화하면 무엇을 도와주나요?', '그동안 무엇을 준비하면 되나요?', '증거 정리표는 꼭 내야 하나요?'];
+  return Array.isArray(r.faq) && r.faq.length ? r.faq : [{ id: 12, q: '365센터는 뭘 해 주나요?' }, { id: 5, q: '변호사 없이도 도움받을 수 있나요?' }];
 }
 function faqRow(r) {
-  const row = el('div', { class: 'choices faq' }, faqs(r).map((q) => el('button', {
+  const row = el('div', { class: 'choices faq' }, faqs(r).map((f) => el('button', {
     class: 'chip', type: 'button',
     onclick: async () => {
       if (state.busy) return;
       state.busy = true; $('#sendBtn').disabled = true;
-      user(q);
-      try { await answerQuestion(q); } finally { state.busy = false; $('#sendBtn').disabled = false; }
+      user(f.q);
+      try { await answerQuestion(f.q, f.id); } finally { state.busy = false; $('#sendBtn').disabled = false; }
     },
-  }, q)));
+  }, f.q)));
   log.append(row); scrollEnd(row);
 }
 
