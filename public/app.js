@@ -96,10 +96,10 @@ function renderLedger() {
     prevLedger[k] = v;
   }
   const filled = Object.entries(state.facts).filter(([k, v]) => k !== 'crisis' && v !== '모름').length;
-  $('#ledgerCount').textContent = `${filled} / 6`;
+  $('#ledgerCount').textContent = `${filled} / 6칸`;
 
   // 휴대폰용 띠: 같은 내용을 짧게(위기 칸은 109 상자로 따로 보이므로 뺌)
-  $('#miniCount').textContent = `${filled} / 6`;
+  $('#miniCount').textContent = `${filled} / 6칸`;
   $('#miniBar').style.width = `${(filled / 6) * 100}%`;
   $('#miniList').replaceChildren(...Object.entries(FIELDS).filter(([k]) => k !== 'crisis').map(([k, f]) => {
     const v = state.facts[k];
@@ -177,7 +177,7 @@ async function onText(text) {
   const wait = bot('정리하고 있어요…');
   let data;
   try { data = await post('/api/extract', { text }); }
-  catch (e) { wait.remove(); bot(`정리하지 못했어요(${e.message}). 버튼으로 이어서 여쭤볼게요.`); state.buttonMode = true; return next(); }
+  catch { wait.remove(); bot('잠시 문제가 생겼어요. 버튼으로 이어서 여쭤볼게요.'); state.buttonMode = true; return next(); }
   wait.remove();
 
   // 이미 아는 값은 '모름'으로 덮지 않는다
@@ -244,20 +244,23 @@ function understood(final = false) {
 async function classifyNow() {
   let r;
   try { r = await post('/api/classify', { facts: state.facts }); }
-  catch (e) { return bot(`분류하지 못했어요(${e.message}). 잠시 뒤 다시 시도하거나 365센터 ☎142-235로 문의하세요.`); }
+  catch { return bot('잠시 문제가 생겼어요. 조금 뒤 다시 시도하거나 365센터 ☎142-235로 문의해 주세요.'); }
   state.result = r;
   if (r.crisis) showCrisis();
   const g = r.guide;
   const isFraud = r.result === 'fraud';
-  const steps = el('ol', {}, g.steps.map((s) => el('li', {}, s)));
+  // 첫 단계는 위의 「지금 가장 먼저 할 일」 상자에 크게 보여 주므로 목록은 2번부터 잇는다
+  const steps = el('ol', g.steps.length > 1 ? { start: '2' } : {}, g.steps.slice(1).map((s) => el('li', {}, s)));
   if (isFraud && state.facts.product.startsWith('비실물') && g.nonPhysical) steps.append(el('li', {}, g.nonPhysical));
   const box = el('section', { class: `result ${g.color}` },
     el('span', { class: 'badge' }, g.label),
     el('h3', {}, headline(r)),
+    g.steps[0] ? el('div', { class: 'first-step' },
+      el('span', { class: 'first-label' }, '지금 가장 먼저 할 일'),
+      el('p', {}, g.steps[0])) : null,
     el('div', { class: 'why' },
       el('span', { class: 'why-label' }, '왜 이렇게 안내했나요?'),
-      el('p', {}, r.ruleText),
-      r.rule ? el('p', { class: 'why-rule' }, `판단 기준: 규칙표 ${r.rule}번`) : null),
+      el('p', {}, r.ruleText)),
     el('h4', { class: 'sr' }, '지금 할 일'), steps,
     el('div', { class: 'orgs' }, g.orgs.map((o) => el('div', { class: 'org' }, el('b', {}, o.name), o.link ? el('a', { href: o.link, target: '_blank', rel: 'noopener' }, o.how) : el('span', {}, o.how)))),
     el('p', { class: 'sources' }, `근거 문서: ${g.sources.join(', ')}`),
