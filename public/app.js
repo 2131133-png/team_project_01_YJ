@@ -134,8 +134,7 @@ function crisisBox() {
   return el('section', { class: 'crisis', role: 'alert' },
     el('h3', {}, '많이 힘드시죠. 먼저 이야기를 들어 줄 곳이 있어요'),
     el('p', {}, '자살예방 상담전화 109는 24시간 연결돼요. 통화한 뒤에도 원하시면 피해 상황 정리를 이어서 도와 드릴게요.'),
-    el('a', { class: 'btn primary', href: 'tel:109' }, '☎ 109 전화하기'),
-    el('p', { class: 'sources' }, '근거: 정책브리핑_자살예방_상담전화_109_통합'));
+    el('a', { class: 'btn primary', href: 'tel:109' }, '☎ 109 전화하기'));
 }
 // 위쪽 고정 상자는 한 번만 만들고, inline 이면 지금 보고 있는 대화 아래에도 바로 띄운다(아래에서 쓰는 중에도 보이게)
 function showCrisis({ inline = false, scroll = true } = {}) {
@@ -332,7 +331,6 @@ async function classifyNow() {
       el('p', {}, r.ruleText)),
     el('h4', { class: 'sr' }, '지금 할 일'), steps,
     el('div', { class: 'orgs' }, g.orgs.map((o) => el('div', { class: 'org' }, el('b', {}, o.name), o.link ? el('a', { href: o.link, target: '_blank', rel: 'noopener' }, o.how) : el('span', {}, o.how)))),
-    el('p', { class: 'sources' }, `근거 문서: ${g.sources.join(', ')}`),
     el('p', { class: 'disclaimer' }, '※ 이 안내는 법적 판단이 아닙니다. 사기 여부는 수사기관이, 분쟁은 조정 기관이 판단해요.'),
   );
   const resultMsg = botWide(box);

@@ -18,6 +18,7 @@ const RULES = `너는 중고거래 피해 안내 챗봇이다. 이용자는 이�
 - 사기 여부·승소·환불 가능 여부·처벌 수위 같은 판정이나 처분은 단정하지 않는다. 판단은 수사기관·조정 기관이 한다고 말한다.
 - 돈, 계좌 비밀번호, 인증번호, 주민등록번호를 묻거나 요구하지 않는다. 대신 접수하지도 않는다.
 - 쉬운 말로 짧게 답한다(5문장 이내). 해야 할 일은 순서가 보이게 쓴다.
+- 답 본문(answer)에는 문서 이름이나 출처를 쓰지 않는다. 이용자에게는 근거를 보여 주지 않는다.
 - 답에 쓴 내용의 근거 문서 이름을 [근거 문서] 목록에서만 골라 sources 에 담는다. 목록에 없는 이름은 쓰지 않고, 근거로 삼은 문서가 없으면 빈 배열로 둔다.
 - 반드시 JSON 객체 하나로만 답한다: {"answer":"...","sources":["문서이름"]}`;
 
@@ -68,12 +69,11 @@ export default async function handler(req, res) {
   console.log(`[ask] ${parsed ? `${ai.provider} 성공` : '안내 문구로 대체'}`);
 
   if (parsed) {
-    // 근거 문서 이름은 안내 자료에 실제로 있는 것만 붙인다(AI 가 지어낸 이름은 버린다)
-    const cited = [...new Set(parsed.sources.filter((s) => g.sources.includes(s)))];
-    const answer = cited.length ? `${parsed.answer}\n\n근거: ${cited.join(', ')}` : parsed.answer;
+    // 근거 문서 이름은 소비자에게 보여 주지 않는다(답 본문만 돌려준다)
+    const answer = parsed.answer;
     return res.status(200).json({ answer, mode: 'live', crisisWord });
   }
   // AI 를 쓸 수 없을 때: 이미 검증된 안내 문구를 순서대로 다시 보여 준다
-  const fallback = `지금은 질문에 맞춰 답하기 어려워요. 대신 지금 할 일을 순서대로 다시 알려 드려요.\n${g.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n더 궁금한 점은 ${CENTER.name} ☎${CENTER.tel}(${CENTER.hours})로 물어보세요.\n\n근거: ${g.sources.join(', ')}`;
+  const fallback = `지금은 질문에 맞춰 답하기 어려워요. 대신 지금 할 일을 순서대로 다시 알려 드려요.\n${g.steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n더 궁금한 점은 ${CENTER.name} ☎${CENTER.tel}(${CENTER.hours})로 물어보세요.`;
   res.status(200).json({ answer: fallback, mode: 'demo', crisisWord });
 }
